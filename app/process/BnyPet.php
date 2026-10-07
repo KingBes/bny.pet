@@ -82,6 +82,17 @@ class BnyPet
         $win->bind("clickThrough", function (bool $isClickThrough) use ($win) {
             $win->setClickThrough($isClickThrough);
         });
+        // 置顶开关（设置面板用）
+        $win->bind("alwaysOnTop", function (bool $onTop) use ($win) {
+            $win->setAlwaysOnTop($onTop);
+            return true;
+        });
+        // 区域点击穿透：JS 上报可交互元素矩形（扁平 [x,y,w,h,...]），
+        // 白名单内正常收鼠标、其余区域穿透到下层窗口
+        $win->bind("__reportRegions", function (array $flat) use ($win) {
+            $win->setClickThroughRegions(array_chunk($flat, 4));
+            return true;
+        });
         // 绑定js事件
         foreach ($data["bind"] as $bind) {
             $win->bind($bind["name"], $bind["cb"]);

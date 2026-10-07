@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" href="/favicon.ico" />
     <title>BnyPet 兔子桌宠</title>
-    <link rel="stylesheet" href="/css.css">
+    <link rel="stylesheet" href="/css.css?v=1">
 </head>
 
 <body>
@@ -91,7 +91,15 @@
                     stroke-linejoin="round">
                     <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" />
                 </svg>
-                休息
+                <span id="restLabel">休息</span>
+            </button>
+            <button class="menu" data-action="work">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3.5" y="7.5" width="17" height="12" rx="2" />
+                    <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5M3.5 12h17" />
+                </svg>
+                打工
             </button>
             <button class="menu" data-action="shop">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
@@ -101,14 +109,13 @@
                 </svg>
                 商店
             </button>
-            <button class="menu" data-action="codex">
+            <button class="menu" data-action="achv">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
                     stroke-linejoin="round">
-                    <path
-                        d="M12 6.5C10.2 5 7.6 4.5 4.5 4.5v13c3.1 0 5.7.5 7.5 2 1.8-1.5 4.4-2 7.5-2v-13c-3.1 0-5.7.5-7.5 2Z" />
-                    <path d="M12 6.5v13" />
+                    <circle cx="12" cy="9" r="5" />
+                    <path d="M9.5 13.5 8 21l4-2.2L16 21l-1.5-7.5" />
                 </svg>
-                图鉴
+                成就
             </button>
             <button class="menu" data-action="settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
@@ -120,52 +127,50 @@
                 设置
             </button>
         </nav>
+
+        <!-- 功能面板（单例，内容按动作切换） -->
+        <div id="sheetWrap">
+            <div class="sheet" id="sheet">
+                <div class="sheet-head">
+                    <span id="sheetTitle">面板</span>
+                    <button class="sheet-close" id="sheetClose" aria-label="关闭">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="sheet-body" id="sheetBody"></div>
+            </div>
+        </div>
     </main>
+
+    <!-- 创建宠物（无存档时遮罩全窗） -->
+    <div id="createOverlay" style="display:none">
+        <div class="create-card">
+            <img src="/assets/bny/body.gif" alt="bny">
+            <h1>遇见你的兔子</h1>
+            <p>给它起个名字，开始一起生活吧</p>
+            <input class="text" id="createName" maxlength="12" placeholder="1~12 个字" autocomplete="off">
+            <button class="btn" id="createBtn">开始饲养</button>
+        </div>
+    </div>
 
     <div id="toast"></div>
 
     <script>
-        // ---------- 状态占位：后续由存档 / PHP 喂入真实数据 ----------
-        const state = {
-            name: '小bny',
-            level: 1,
-            stage: '幼生期',
-            hunger: 72,
-            mood: 86,
-            energy: 64,
-            exp: 12,
-            expMax: 100,
-            coins: 0,
-        };
+        // ---------- 全局状态 ----------
+        let S = null;                 // /api/state 返回的 data
+        let knownAch = new Set();     // 已知成就 code，用于解锁弹提示
+        let sheetAction = null;       // 当前打开的面板
+        let workTimer = null;         // 打工倒计时
+        let resetArmed = false;       // 重置二次确认
 
-        function render() {
-            const $ = (id) => document.getElementById(id);
-            $('petName').textContent = state.name;
-            $('petLv').textContent = 'Lv.' + state.level;
-            $('petStatus').textContent = state.stage + ' · ' + moodText(state.mood);
-            $('barHunger').style.width = state.hunger + '%';
-            $('barMood').style.width = state.mood + '%';
-            $('barEnergy').style.width = state.energy + '%';
-            $('valHunger').textContent = state.hunger;
-            $('valMood').textContent = state.mood;
-            $('valEnergy').textContent = state.energy;
-            $('barExp').style.width = Math.min(100, state.exp / state.expMax * 100) + '%';
-            $('valExp').textContent = state.exp + '/' + state.expMax;
-            $('valCoins').textContent = state.coins;
-        }
+        const $ = (id) => document.getElementById(id);
 
-        function moodText(mood) {
-            if (mood >= 80) return '心情不错';
-            if (mood >= 50) return '还算开心';
-            return '有点低落';
-        }
-
-        render();
-
-        // ---------- 桥接占位：函数不存在（浏览器预览）时静默跳过 ----------
         function bridge(name, ...args) {
             const fn = window[name];
-            if (typeof fn !== 'function') return null;
+            if (typeof fn !== 'function') return null; // 浏览器预览时桥不存在
             try {
                 return fn(...args);
             } catch (err) {
@@ -174,112 +179,312 @@
             }
         }
 
-        (function () {
-            'use strict';
+        // ---------- API ----------
+        async function api(path, form) {
+            // 仅 state 是 GET，其余接口一律 POST（webman 对方法不匹配返回 404）
+            const opt = path === '/api/state' && form === undefined ? {} : {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(form ?? {}),
+            };
+            const res = await fetch(path, opt);
+            const json = await res.json();
+            if (json.code !== 0) throw new Error(json.msg || '请求失败');
+            return json;
+        }
 
-            const THROTTLE_DELAY = 100;
-
-            let timer = null;
-            let lastX = 0;
-            let lastY = 0;
-
-            /* ---------- 标签表 ---------- */
-            // 穿透的终点：根标签永远不算空元素
-            const ROOT_TAGS = new Set(['HTML', 'BODY']);
-
-            // 功能性 / 媒体 / 交互元素：没有文字也算"有内容"
-            const CONTENT_TAGS = new Set([
-                'IMG', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'BUTTON', 'A', 'LABEL',
-                'VIDEO', 'AUDIO', 'CANVAS', 'IFRAME', 'SVG', 'MATH', 'PICTURE', 'SOURCE',
-                'TRACK', 'HR', 'BR', 'PROGRESS', 'METER', 'OBJECT', 'EMBED', 'MAP', 'AREA'
-            ]);
-
-            // 不承载可视内容，直接当空气
-            const IGNORE_TAGS = new Set([
-                'HEAD', 'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'META', 'LINK', 'TITLE', 'SECTION', "MAIN"
-            ]);
-
-            // SVG / MathML 的 tagName 大小写不统一，先转大写再比较
-            function tagOf(el) {
-                return (el.tagName || '').toUpperCase();
+        async function refresh() {
+            try {
+                const json = await api('/api/state');
+                applyState(json.data);
+            } catch (err) {
+                toast(err.message || '服务未就绪');
             }
+        }
 
-            // 是否真的被渲染（display:none / visibility:hidden 的子树不算内容）
-            function isRendered(el) {
-                return typeof el.checkVisibility !== 'function'
-                    ? true
-                    : el.checkVisibility({ checkVisibilityCSS: true });
-            }
-
-            // 【核心】递归判断：这棵子树里有没有真正的可视内容
-            function hasContent(el) {
-                if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
-
-                const tag = tagOf(el);
-                if (ROOT_TAGS.has(tag) || CONTENT_TAGS.has(tag)) return true;
-                if (IGNORE_TAGS.has(tag) || !isRendered(el)) return false;
-
-                // innerText 会忽略 display:none 的文本，比 textContent 更贴近"视觉空白"
-                const text = (typeof el.innerText === 'string' ? el.innerText : el.textContent) || '';
-                if (text.trim() !== '') return true;
-
-                for (let i = 0; i < el.children.length; i++) {
-                    if (hasContent(el.children[i])) return true;
-                }
+        async function action(path, form) {
+            try {
+                const json = await api(path, form);
+                applyState(json.data);
+                if (json.msg) toast(json.msg);
+                return true;
+            } catch (err) {
+                toast(err.message);
                 return false;
             }
+        }
 
-            function isEmptyElement(el) {
-                return !hasContent(el);
+        // ---------- 渲染 ----------
+        function moodText(mood) {
+            if (mood >= 80) return '心情不错';
+            if (mood >= 50) return '还算开心';
+            return '有点低落';
+        }
+
+        function applyState(data) {
+            const first = S === null;
+            S = data;
+            if (!S.has_pet) {
+                $('createOverlay').style.display = 'flex';
+                closeSheet();
+                return;
             }
+            $('createOverlay').style.display = 'none';
 
-            // 【核心】向上穿透所有空元素，找到最终的"有效元素"
-            function getRealTarget(el) {
-                let current = el;
-                while (current && !ROOT_TAGS.has(tagOf(current)) && isEmptyElement(current)) {
-                    current = current.parentElement;
+            const p = S.pet;
+            $('petName').textContent = p.name;
+            $('petLv').textContent = 'Lv.' + p.level;
+            const busy = S.work ? '打工中 · ' + S.work.name : (p.sleeping ? '睡梦中' : null);
+            $('petStatus').textContent = p.stage + ' · ' + (busy || moodText(p.mood));
+            $('barHunger').style.width = p.hunger + '%';
+            $('barMood').style.width = p.mood + '%';
+            $('barEnergy').style.width = p.energy + '%';
+            $('valHunger').textContent = p.hunger;
+            $('valMood').textContent = p.mood;
+            $('valEnergy').textContent = p.energy;
+            $('barExp').style.width = Math.min(100, p.exp / p.exp_max * 100) + '%';
+            $('valExp').textContent = p.exp + '/' + p.exp_max;
+            $('valCoins').textContent = p.coins;
+            $('restLabel').textContent = p.sleeping ? '唤醒' : '休息';
+
+            // 新解锁的成就弹提示
+            for (const a of S.achievements) {
+                if (a.unlocked_at > 0) {
+                    if (!knownAch.has(a.code) && !first) {
+                        toast('🏆 成就解锁：「' + a.name + '」');
+                    }
+                    knownAch.add(a.code);
                 }
-                return current || document.body;
             }
 
-            function checkBlank(x, y) {
-                const originTarget = document.elementFromPoint(x, y);
-                if (!originTarget) return; // 坐标在视口外等情况，直接忽略
+            // 打工中：状态条实时倒计时；结束自动刷新
+            if (workTimer) { clearInterval(workTimer); workTimer = null; }
+            if (S.work && sheetAction === 'work') {
+                workTimer = setInterval(tickWorkCountdown, 1000);
+                tickWorkCountdown();
+            }
+            if (sheetAction) renderSheet();
+        }
 
-                const realTarget = getRealTarget(originTarget);
-                const isBlank =
-                    realTarget === document.documentElement || realTarget === document.body;
+        // ---------- 面板 ----------
+        function openSheet(name) {
+            sheetAction = name;
+            $('sheetWrap').classList.add('show');
+            $('menuToggle').classList.add('active');
+            renderSheet();
+            if (name === 'work' && S.work) {
+                workTimer = setInterval(tickWorkCountdown, 1000);
+            }
+        }
 
-                // console.log(isBlank ? '在空白处' : '非空白处', realTarget);
-                clickThrough(isBlank);
+        function closeSheet() {
+            sheetAction = null;
+            resetArmed = false;
+            $('sheetWrap').classList.remove('show');
+            $('menuToggle').classList.remove('active');
+            if (workTimer) { clearInterval(workTimer); workTimer = null; }
+        }
+
+        function effectText(item) {
+            const parts = [];
+            if (item.hunger > 0) parts.push('饱食 +' + item.hunger);
+            if (item.mood > 0) parts.push('心情 +' + item.mood);
+            if (item.energy > 0) parts.push('体力 +' + item.energy);
+            if (item.energy < 0) parts.push('体力 ' + item.energy);
+            if (item.exp > 0) parts.push('经验 +' + item.exp);
+            return parts.join(' · ') || '无效果';
+        }
+
+        const COND_LABEL = {
+            feed_count: '累计喂食', play_count: '累计玩耍', work_count: '累计打工',
+            level: '等级达到', coins: '持有金币', days: '相伴天数',
+        };
+
+        function condText(a) {
+            const unit = a.condition_type === 'level' ? ' 级' : (a.condition_type === 'days' ? ' 天' : '');
+            return (COND_LABEL[a.condition_type] || a.condition_type) + ' ' + a.condition_value + unit;
+        }
+
+        function renderSheet() {
+            if (!sheetAction || !S || !S.has_pet) return;
+            const body = $('sheetBody');
+            const title = $('sheetTitle');
+
+            if (sheetAction === 'feed') {
+                title.textContent = '喂食 · 背包';
+                if (!S.bag.length) {
+                    body.innerHTML = '<div class="empty">背包空空的，去商店买点吃的吧</div>';
+                    return;
+                }
+                body.innerHTML = S.bag.map(b => `
+                    <div class="row">
+                        <div class="row-main">
+                            <div class="row-title">${esc(b.name)} <span class="badge">${b.type === 'food' ? '食物' : '玩具'} ×${b.qty}</span></div>
+                            <div class="row-sub">${effectText(b)}</div>
+                        </div>
+                        <button class="btn" data-feed="${b.bag_id}">使用</button>
+                    </div>`).join('');
             }
 
-            // 节流：每次都更新坐标，只在定时器到点时用"最新坐标"做一次判断
-            document.addEventListener('mousemove', function (e) {
-                lastX = e.clientX;
-                lastY = e.clientY;
+            if (sheetAction === 'play') {
+                title.textContent = '玩耍';
+                const p = S.pet;
+                body.innerHTML = `
+                    <div class="hint">陪它玩一会儿：体力 -15 · 饱食 -5 → 心情 +20 · 经验 +6${p.low ? '<br><b>小bny 状态低落中，收益会减半</b>' : ''}</div>
+                    <button class="btn wide" id="playBtn">陪它玩耍</button>`;
+                body.querySelector('#playBtn').onclick = () => action('/api/pet/play');
+            }
+
+            if (sheetAction === 'work') {
+                title.textContent = '打工';
+                if (S.work) {
+                    body.innerHTML = `
+                        <div class="hint">小bny 正在「${esc(S.work.name)}」，干完这单才能做别的</div>
+                        <div class="row center">
+                            <div class="row-main center">
+                                <div class="countdown" id="workCountdown">--:--</div>
+                                <div class="row-sub" id="workHint">打工中…</div>
+                            </div>
+                            <button class="btn" id="collectBtn" disabled>收取</button>
+                        </div>`;
+                    body.querySelector('#collectBtn').onclick = () => action('/api/pet/work/collect');
+                    tickWorkCountdown();
+                } else {
+                    body.innerHTML = Object.entries(S.jobs).map(([key, j]) => `
+                        <div class="row">
+                            <div class="row-main">
+                                <div class="row-title">${esc(j.name)} <span class="badge">${j.minutes} 分钟</span></div>
+                                <div class="row-sub">体力 -${j.energy} → 金币 +${j.coins} · 经验 +${j.exp}</div>
+                            </div>
+                            <button class="btn" data-job="${key}">接单</button>
+                        </div>`).join('');
+                    body.querySelectorAll('[data-job]').forEach(el => {
+                        el.onclick = () => action('/api/pet/work', { job: el.dataset.job });
+                    });
+                }
+            }
+
+            if (sheetAction === 'shop') {
+                title.textContent = '商店 · 金币 ' + S.pet.coins;
+                body.innerHTML = S.shop.map(i => `
+                    <div class="row">
+                        <div class="row-main">
+                            <div class="row-title">${esc(i.name)} <span class="badge">${i.price} 金币</span></div>
+                            <div class="row-sub">${effectText(i)} · ${esc(i.intro)}</div>
+                        </div>
+                        <button class="btn" data-buy="${i.id}">购买</button>
+                    </div>`).join('');
+                body.querySelectorAll('[data-buy]').forEach(el => {
+                    el.onclick = () => action('/api/shop/buy', { item_id: el.dataset.buy, qty: 1 });
+                });
+            }
+
+            if (sheetAction === 'achv') {
+                const done = S.achievements.filter(a => a.unlocked_at > 0).length;
+                title.textContent = `成就 ${done}/${S.achievements.length}`;
+                body.innerHTML = S.achievements.map(a => `
+                    <div class="row ${a.unlocked_at > 0 ? 'ok' : ''}">
+                        <div class="row-main">
+                            <div class="row-title">${a.unlocked_at > 0 ? '🏆 ' : '🔒 '}${esc(a.name)}</div>
+                            <div class="row-sub">${esc(a.intro)}（${condText(a)}）</div>
+                        </div>
+                        <span class="badge reward">金币+${a.reward_coins}${a.reward_exp ? ' · 经验+' + a.reward_exp : ''}</span>
+                    </div>`).join('');
+            }
+
+            if (sheetAction === 'settings') {
+                // 设置暂只开放重置入口（置顶/穿透开关后续再加回）
+                title.textContent = '设置';
+                body.innerHTML = `
+                    <div class="row danger-zone">
+                        <div class="row-main"><div class="row-title">重置存档</div><div class="row-sub">清空宠物、背包与成就，从零开始</div></div>
+                        <button class="btn danger" id="resetBtn">重置</button>
+                    </div>`;
+                const resetBtn = body.querySelector('#resetBtn');
+                resetBtn.onclick = async () => {
+                    if (!resetArmed) {
+                        resetArmed = true;
+                        resetBtn.textContent = '确认重置？';
+                        setTimeout(() => { resetArmed = false; resetBtn.textContent = '重置'; }, 3000);
+                        return;
+                    }
+                    if (await action('/api/pet/reset')) closeSheet();
+                };
+            }
+        }
+
+        function tickWorkCountdown() {
+            const el = $('workCountdown');
+            const hint = $('workHint');
+            const btn = $('collectBtn');
+            if (!el || !S || !S.work) return;
+            const left = S.work.end_at - Math.floor(Date.now() / 1000);
+            if (left <= 0) {
+                if (hint) hint.textContent = '完工啦，点击收取报酬';
+                if (btn) btn.disabled = false;
+                el.textContent = '00:00';
+                if (workTimer) { clearInterval(workTimer); workTimer = null; }
+                return;
+            }
+            if (btn) btn.disabled = true;
+            el.textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+        }
+
+        function esc(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // ---------- 区域点击穿透：白名单元素收鼠标，其余区域穿透 ----------
+        const SOLID_SELECTORS = ['#petImg', '#menuToggle', '#menus', '.panel-info', '#sheetWrap', '#createOverlay'];
+
+        function collectSolidRects() {
+            const rects = [];
+            SOLID_SELECTORS.forEach((sel) => {
+                document.querySelectorAll(sel).forEach((el) => {
+                    if (typeof el.checkVisibility === 'function'
+                        && !el.checkVisibility({ checkVisibilityCSS: true })) return;
+                    const r = el.getBoundingClientRect();
+                    if (r.width < 1 || r.height < 1) return;
+                    rects.push([r.left, r.top, r.width, r.height]);
+                });
+            });
+            return rects;
+        }
+
+        (function reportSolidRects() {
+            if (typeof __reportRegions !== 'function') return; // 浏览器预览时静默跳过
+
+            let timer = null;
+            function flush() {
+                timer = null;
+                bridge('__reportRegions', collectSolidRects().flat());
+            }
+            function debounce() {
                 if (timer) return;
+                timer = setTimeout(flush, 120);
+            }
 
-                timer = setTimeout(function () {
-                    timer = null; // 先复位，避免回调抛异常时节流锁死
-                    checkBlank(lastX, lastY);
-                }, THROTTLE_DELAY);
-            }, { passive: true });
+            new MutationObserver(debounce).observe(document.body, {
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            });
+            document.getElementById('petImg').addEventListener('load', debounce);
+            if (document.readyState === 'complete') {
+                flush();
+            } else {
+                window.addEventListener('load', flush);
+            }
         })();
 
-
-        const panelInfo = document.querySelector('.panel-info'); // 信息面板
-        const box = document.getElementById('petImg'); // 宠物本体
-        const menus = document.getElementById('menus'); // 菜单
-
         // ---------- 点击 vs 拖动：移动超过阈值才发起原生拖动 ----------
-        // mousedown 立刻 tbBeginDrag 会让系统进入原生拖动模态循环，mouseup 被吞掉，
-        // click 永远不触发（菜单就打不开）。所以先记录，移动超阈值才拖。
         let pressing = false;
         let dragMoved = false;
         let startX = 0;
         let startY = 0;
         const DRAG_THRESHOLD = 5;
+
+        const box = document.getElementById('petImg');
 
         box.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
@@ -304,37 +509,67 @@
         box.addEventListener('mouseleave', () => { pressing = false; });
 
         // ---------- 显示面板：鼠标悬停宠物本体 ----------
-        box.addEventListener('mouseenter', () => {
-            panelInfo.style.display = 'block';
-        });
-        box.addEventListener('mouseleave', () => {
-            panelInfo.style.display = 'none';
+        const panelInfo = document.querySelector('.panel-info');
+        box.addEventListener('mouseenter', () => { panelInfo.style.display = 'block'; });
+        box.addEventListener('mouseleave', () => { panelInfo.style.display = 'none'; });
+
+        // ---------- 菜单 / 面板交互 ----------
+        $('menuToggle').addEventListener('click', () => {
+            if (sheetAction) { closeSheet(); return; }
+            $('menus').classList.toggle('show');
+            $('menuToggle').classList.toggle('active');
         });
 
-        // ---------- 显示菜单：宠物右下角小按钮 ----------
-        const menuToggle = document.getElementById('menuToggle');
-        menuToggle.addEventListener('click', () => {
-            menus.classList.toggle('show');
-            menuToggle.classList.toggle('active');
-        });
-
-        // ---------- 菜单（功能开发中，仅提示） ----------
         document.getElementById('menus').addEventListener('click', (e) => {
             const btn = e.target.closest('button[data-action]');
             if (!btn) return;
-            bridge('petAction', btn.dataset.action);
-            toast('「' + btn.textContent.trim() + '」功能开发中');
+            const act = btn.dataset.action;
+            if (!S || !S.has_pet) return;
+            $('menus').classList.remove('show');
+            $('menuToggle').classList.remove('active');
+
+            if (act === 'rest') {
+                action('/api/pet/rest', { on: S.pet.sleeping ? '0' : '1' });
+                return;
+            }
+            openSheet(act);
+        });
+
+        $('sheetBody').addEventListener('click', (e) => {
+            const feedBtn = e.target.closest('[data-feed]');
+            if (feedBtn) action('/api/pet/feed', { bag_id: feedBtn.dataset.feed });
+        });
+
+        $('sheetClose').addEventListener('click', closeSheet);
+
+        // 点击遮罩空白处关闭面板
+        $('sheetWrap').addEventListener('mousedown', (e) => {
+            if (e.target === $('sheetWrap')) closeSheet();
+        });
+
+        // ---------- 创建宠物 ----------
+        $('createBtn').addEventListener('click', async () => {
+            const name = $('createName').value.trim();
+            if (!name) { toast('先起个名字吧'); return; }
+            await action('/api/pet/create', { name });
+        });
+        $('createName').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') $('createBtn').click();
         });
 
         // ---------- 轻提示 ----------
         let toastTimer = null;
         function toast(text) {
-            const el = document.getElementById('toast');
+            const el = $('toast');
             el.textContent = text;
             el.classList.add('show');
             clearTimeout(toastTimer);
             toastTimer = setTimeout(() => el.classList.remove('show'), 1600);
         }
+
+        // ---------- 启动与轮询 ----------
+        refresh();
+        setInterval(refresh, 30000);
     </script>
 </body>
 

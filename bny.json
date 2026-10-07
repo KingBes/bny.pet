@@ -1,4 +1,13 @@
 {
     "name": "bnyPet",
-    "main": "vendor/kingbes/pebview/windows.php"
+    "main": "vendor/kingbes/pebview/windows.php",
+    "ignore": [
+        "runtime/",
+        ".git/",
+        "test/",
+        ".zcode/",
+        ".workbuddy/",
+        ".playwright-cli/",
+        "config/"
+    ]
 }
