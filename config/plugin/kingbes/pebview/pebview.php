@@ -3,7 +3,7 @@
 use Kingbes\PebView\WindowHint;
 
 return [
-    "debug" => true, // 是否开启调试模式
+    "debug" => false, // 是否开启调试模式
     "init" => "", // 初始化js代码(会在window.onload之前加载js代码)
     "title" => "PebView", // 窗口标题
     "size" => [400, 420, WindowHint::None], // 窗口大小
