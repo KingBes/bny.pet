@@ -60,7 +60,17 @@ class PetService
     private const STARTER_PACK = ['carrot' => 3];
 
     /** 可写设置项白名单 */
-    public const SETTING_KEYS = ['always_on_top', 'click_through'];
+    public const SETTING_KEYS = ['always_on_top', 'click_through', 'skin'];
+
+    /** 设置项默认值 */
+    private const SETTING_DEFAULTS = [
+        'always_on_top' => '0',
+        'click_through' => '0',
+        'skin' => '少年',
+    ];
+
+    /** 皮肤素材：皮肤目录下必须存在的精灵图文件名 */
+    private const SKIN_SHEET = '行走.png';
 
     // ---------- 查询 ----------
 
@@ -444,9 +454,33 @@ class PetService
 
     // ---------- 设置 ----------
 
+    /**
+     * 扫描 public/assets 下含行走精灵图的子目录作为皮肤列表（id 即目录名）。
+     */
+    public static function skins(): array
+    {
+        $skins = [];
+        $assetsDir = public_path('assets');
+        $names = @scandir($assetsDir);
+        if ($names === false) {
+            return $skins;
+        }
+        foreach ($names as $name) {
+            if ($name === '.' || $name === '..') {
+                continue;
+            }
+            $path = $assetsDir . DIRECTORY_SEPARATOR . $name;
+            if (!is_dir($path) || !is_file($path . DIRECTORY_SEPARATOR . self::SKIN_SHEET)) {
+                continue;
+            }
+            $skins[] = ['id' => $name, 'name' => $name];
+        }
+        return $skins;
+    }
+
     public static function getSettings(): array
     {
-        $settings = array_fill_keys(self::SETTING_KEYS, '0');
+        $settings = self::SETTING_DEFAULTS;
         foreach (Setting::select() as $row) {
             if (array_key_exists($row->key, $settings)) {
                 $settings[$row->key] = (string)$row->value;
@@ -460,7 +494,15 @@ class PetService
         if (!in_array($key, self::SETTING_KEYS, true)) {
             throw new BizException('不支持的设置项');
         }
-        $value = $value === '1' || $value === 'true' ? '1' : '0';
+        if ($key === 'skin') {
+            // 皮肤值必须是实际存在的皮肤目录
+            $skinIds = array_column(self::skins(), 'id');
+            if (!in_array($value, $skinIds, true)) {
+                throw new BizException('皮肤不存在');
+            }
+        } else {
+            $value = $value === '1' || $value === 'true' ? '1' : '0';
+        }
         Db::execute(
             'INSERT INTO settings (`key`, `value`) VALUES (?, ?)'
                 . ' ON CONFLICT(`key`) DO UPDATE SET value = excluded.value',
@@ -477,7 +519,8 @@ class PetService
     {
         $pet = self::getPet();
         if ($pet === null) {
-            return ['has_pet' => false];
+            // 未创建宠物也要带皮肤信息：创建遮罩需要按当前皮肤渲染
+            return ['has_pet' => false] + self::skinState();
         }
         self::tick($pet);
         $pet = self::getPet() ?? $pet;
@@ -564,8 +607,16 @@ class PetService
             'shop' => array_values($shopItems),
             'achievements' => $achievements,
             'jobs' => self::JOBS,
-            'settings' => self::getSettings(),
             'now' => time(),
+        ] + self::skinState();
+    }
+
+    /** 皮肤列表 + 当前皮肤，供前端渲染精灵图 */
+    private static function skinState(): array
+    {
+        return [
+            'skins' => self::skins(),
+            'settings' => self::getSettings(),
         ];
     }
 

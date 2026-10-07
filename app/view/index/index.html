@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" href="/favicon.ico" />
     <title>BnyPet 兔子桌宠</title>
-    <link rel="stylesheet" href="/css.css?v=1">
+    <link rel="stylesheet" href="/css.css?v=3">
 </head>
 
 <body>
@@ -57,7 +57,7 @@
         <!-- 宠物区 -->
         <section class="stage">
             <div class="pet-wrap">
-                <img id="petImg" src="/assets/bny/body.gif" alt="bny" draggable="false">
+                <div id="petImg" class="pet-sprite" role="img" aria-label="宠物"></div>
                 <!-- 菜单开关：本体右下角 -->
                 <button id="menuToggle" title="菜单" aria-label="菜单">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
@@ -117,6 +117,14 @@
                 </svg>
                 成就
             </button>
+            <button class="menu" data-action="skin">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M8 4.5 4.5 8l2.5 2.5v9h10v-9L19.5 8 16 4.5" />
+                    <path d="M8 4.5q4 3.5 8 0" />
+                </svg>
+                换肤
+            </button>
             <button class="menu" data-action="settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
                     stroke-linejoin="round">
@@ -148,7 +156,7 @@
     <!-- 创建宠物（无存档时遮罩全窗） -->
     <div id="createOverlay" style="display:none">
         <div class="create-card">
-            <img src="/assets/bny/body.gif" alt="bny">
+            <div class="pet-sprite" id="createSprite" role="img" aria-label="宠物"></div>
             <h1>遇见你的兔子</h1>
             <p>给它起个名字，开始一起生活吧</p>
             <input class="text" id="createName" maxlength="12" placeholder="1~12 个字" autocomplete="off">
@@ -177,6 +185,39 @@
                 console.warn('[bridge]', name, err);
                 return null;
             }
+        }
+
+        // ---------- 精灵图 / 换肤 ----------
+        // 行走图：4x4 网格，每帧 32x48，行序 下/左/右/上；缩放倍数由 CSS 的 --pet-scale 控制
+        const SPRITE_SHEET = '行走.png';
+        const DIR_ROW = { down: 0, left: 1, right: 2, up: 3 };
+        let currentSkin = null;
+
+        function setSkin(id) {
+            if (!id || id === currentSkin) return;
+            currentSkin = id;
+            // 中文目录/文件名需编码后拼 URL
+            document.documentElement.style.setProperty(
+                '--skin-url',
+                `url("/assets/${encodeURIComponent(id)}/${encodeURIComponent(SPRITE_SHEET)}")`
+            );
+        }
+
+        function face(dir) {
+            if (!(dir in DIR_ROW)) dir = 'down';
+            const y = `calc(var(--pet-scale) * ${-48 * DIR_ROW[dir]}px)`;
+            document.querySelectorAll('.pet-sprite').forEach((el) => {
+                el.style.backgroundPositionY = y;
+            });
+        }
+
+        // 静止时停在当前朝向第一帧（站立姿势），拖动中才播放走路动画
+        function startWalk() {
+            $('petImg').classList.add('walking');
+        }
+
+        function stopWalk() {
+            $('petImg').classList.remove('walking');
         }
 
         // ---------- API ----------
@@ -224,6 +265,11 @@
         function applyState(data) {
             const first = S === null;
             S = data;
+            // 应用皮肤：设置的皮肤不在列表里时回退到第一个可用皮肤
+            const skinIds = (S.skins || []).map((s) => s.id);
+            let skin = (S.settings && S.settings.skin) || '少年';
+            if (skinIds.length && !skinIds.includes(skin)) skin = skinIds[0];
+            setSkin(skin);
             if (!S.has_pet) {
                 $('createOverlay').style.display = 'flex';
                 closeSheet();
@@ -392,6 +438,29 @@
                     </div>`).join('');
             }
 
+            if (sheetAction === 'skin') {
+                title.textContent = '换肤';
+                const skins = Array.isArray(S.skins) ? S.skins : [];
+                const curSkin = S.settings ? S.settings.skin : null;
+                body.innerHTML = `
+                    ${skins.map((s) => `
+                        <div class="row ${s.id === curSkin ? 'ok' : ''}">
+                            <span class="skin-thumb" data-skin-thumb="${esc(s.id)}"></span>
+                            <div class="row-main"><div class="row-title">${esc(s.name)}</div></div>
+                            ${s.id === curSkin
+                        ? '<span class="badge">使用中</span>'
+                        : `<button class="btn" data-skin="${esc(s.id)}">使用</button>`}
+                        </div>`).join('')}`;
+                body.querySelectorAll('[data-skin]').forEach((el) => {
+                    el.onclick = () => action('/api/settings', { key: 'skin', value: el.dataset.skin });
+                });
+                // 缩略图：取行走图第一帧（朝下站立）
+                body.querySelectorAll('[data-skin-thumb]').forEach((el) => {
+                    el.style.backgroundImage
+                        = `url("/assets/${encodeURIComponent(el.dataset.skinThumb)}/${encodeURIComponent(SPRITE_SHEET)}")`;
+                });
+            }
+
             if (sheetAction === 'settings') {
                 // 设置暂只开放重置入口（置顶/穿透开关后续再加回）
                 title.textContent = '设置';
@@ -469,7 +538,6 @@
                 attributes: true,
                 attributeFilter: ['class', 'style']
             });
-            document.getElementById('petImg').addEventListener('load', debounce);
             if (document.readyState === 'complete') {
                 flush();
             } else {
@@ -480,14 +548,22 @@
         // ---------- 点击 vs 拖动：移动超过阈值才发起原生拖动 ----------
         let pressing = false;
         let dragMoved = false;
+        let dragging = false;   // 原生拖动进行中：期间页面收不到鼠标事件，结束后首个鼠标事件即视为拖动结束
         let startX = 0;
         let startY = 0;
         const DRAG_THRESHOLD = 5;
 
         const box = document.getElementById('petImg');
 
+        function endDrag() {
+            dragging = false;
+            stopWalk();
+            face('down'); // 拖完回到默认朝向的第一帧站立
+        }
+
         box.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
+            if (dragging) endDrag();
             pressing = true;
             dragMoved = false;
             startX = e.screenX;
@@ -496,16 +572,30 @@
 
         box.addEventListener('mousemove', (e) => {
             if (!pressing || dragMoved) return;
-            if (Math.abs(e.screenX - startX) < DRAG_THRESHOLD
-                && Math.abs(e.screenY - startY) < DRAG_THRESHOLD) {
+            const dx = e.screenX - startX;
+            const dy = e.screenY - startY;
+            if (Math.abs(dx) < DRAG_THRESHOLD
+                && Math.abs(dy) < DRAG_THRESHOLD) {
                 return;
             }
             dragMoved = true;
+            dragging = true;
             pressing = false;
+            // 拖动换向：取位移主轴方向（素材行序 下/左/右/上），边拖边走路
+            face(Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : (dy >= 0 ? 'down' : 'up'));
+            startWalk();
             bridge('tbBeginDrag', e.screenX, e.screenY);
         });
 
-        window.addEventListener('mouseup', () => { pressing = false; });
+        window.addEventListener('mousemove', (e) => {
+            // 原生拖动结束后收到的首个移动事件，鼠标必然已松开
+            if (dragging && e.buttons === 0) endDrag();
+        });
+
+        window.addEventListener('mouseup', () => {
+            pressing = false;
+            if (dragging) endDrag();
+        });
         box.addEventListener('mouseleave', () => { pressing = false; });
 
         // ---------- 显示面板：鼠标悬停宠物本体 ----------
@@ -568,6 +658,7 @@
         }
 
         // ---------- 启动与轮询 ----------
+        setSkin('少年'); // 首屏先按默认皮肤渲染，等 /api/state 返回后再校正
         refresh();
         setInterval(refresh, 30000);
     </script>

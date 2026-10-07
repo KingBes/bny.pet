@@ -8,6 +8,7 @@
     --pink: #FF8FB1;
     --amber: #FFC46B;
     --mint: #7DD8C1;
+    --pet-scale: 3;
 }
 
 * {
@@ -175,10 +176,33 @@ main {
     justify-content: center;
 }
 
+/* 精灵图宠物：行走图 4x4 网格（每帧 32x48，行序 下/左/右/上），--pet-scale 控制缩放 */
+.pet-sprite {
+    width: calc(32px * var(--pet-scale));
+    height: calc(48px * var(--pet-scale));
+    background-image: var(--skin-url, url("/assets/%E5%B0%91%E5%B9%B4/%E8%A1%8C%E8%B5%B0.png"));
+    background-size: calc(128px * var(--pet-scale)) calc(192px * var(--pet-scale));
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+}
+
+/* 静止时停在当前朝向第一帧（站立姿势），拖动中才循环走路 */
+.pet-sprite.walking {
+    animation: pet-walk .64s steps(4, end) infinite;
+}
+
+@keyframes pet-walk {
+    from {
+        background-position-x: 0;
+    }
+
+    to {
+        background-position-x: calc(-128px * var(--pet-scale));
+    }
+}
+
 #petImg {
     position: relative;
-    width: 142px;
-    height: auto;
     cursor: grab;
     transition: transform .2s ease;
 }
@@ -444,6 +468,16 @@ main {
     background: #FFF3D6;
 }
 
+/* 换肤预览：行走图第一帧（朝下站立） */
+.skin-thumb {
+    flex: none;
+    width: 32px;
+    height: 48px;
+    background-size: 128px 192px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+}
+
 .hint {
     font-size: 12px;
     line-height: 1.6;
@@ -568,9 +602,7 @@ main {
     text-align: center;
 }
 
-.create-card img {
-    width: 110px;
-    height: auto;
+.create-card .pet-sprite {
     margin-bottom: 4px;
 }
 
