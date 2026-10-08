@@ -27,7 +27,7 @@ class PetController
         try {
             DbInit::ensure();
             PetService::create((string)$request->post('name', ''));
-            return json_ok(PetService::state(), '与小bny 相遇啦');
+            return json_ok(PetService::state(), '与' . $request->post('name', '') . ' 相遇啦');
         } catch (BizException $e) {
             return json_err($e->getMessage());
         } catch (Throwable $e) {
@@ -40,7 +40,7 @@ class PetController
         try {
             DbInit::ensure();
             PetService::reset();
-            return json_ok(['has_pet' => false], '存档已重置，迎接新的小bny 吧');
+            return json_ok(['has_pet' => false], '存档已重置，迎接新的宠物');
         } catch (BizException $e) {
             return json_err($e->getMessage());
         } catch (Throwable $e) {

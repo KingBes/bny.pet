@@ -21,3 +21,19 @@ composer install
 php start.php start # linux/macos
 php ./vendor/kingbes/pebview/windows.php # windows
 ```
+
+## 功能
+
+- [X] 创建宠物
+- [X] 重置宠物
+- [X] 喂食
+- [X] 玩耍
+- [X] 休息
+- [X] 打工
+- [X] 商店
+- [X] 成就
+- [X] 换肤
+
+## 截图
+
+![demo](demo.png)
