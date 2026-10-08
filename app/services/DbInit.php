@@ -74,7 +74,7 @@ class DbInit
     ];
 
     private const SHOP_SEED = [
-        ['carrot', '胡萝卜', 'food', 5, 20, 0, 0, 2, '小bny 最爱，恢复少量饱食'],
+        ['carrot', '胡萝卜', 'food', 5, 20, 0, 0, 2, '宠物 最爱，恢复少量饱食'],
         ['apple', '苹果', 'food', 8, 15, 10, 0, 3, '甜脆可口，顺带哄哄心情'],
         ['pellet', '兔粮', 'food', 12, 40, 0, 0, 4, '营养均衡的主食'],
         ['cake', '精心蛋糕', 'food', 22, 30, 20, 0, 6, '难得的甜点，饱食心情双补'],
@@ -83,9 +83,9 @@ class DbInit
     ];
 
     private const ACHIEVEMENT_SEED = [
-        ['first_feed', '初次投喂', '第一次给小bny喂食', 'feed_count', 1, 10, 0, 1],
+        ['first_feed', '初次投喂', '第一次给宠物喂食', 'feed_count', 1, 10, 0, 1],
         ['feed_30', '喂食达人', '累计喂食 30 次', 'feed_count', 30, 30, 20, 2],
-        ['first_play', '玩耍初体验', '第一次陪小bny玩耍', 'play_count', 1, 10, 0, 3],
+        ['first_play', '玩耍初体验', '第一次陪宠物玩耍', 'play_count', 1, 10, 0, 3],
         ['play_50', '玩耍狂魔', '累计玩耍 50 次', 'play_count', 50, 50, 30, 4],
         ['first_work', '打工第一课', '第一次完成打工', 'work_count', 1, 15, 0, 5],
         ['work_20', '打工标兵', '累计完成 20 次打工', 'work_count', 20, 60, 40, 6],
@@ -93,7 +93,7 @@ class DbInit
         ['level_10', '长大成人', '等级达到 Lv.10', 'level', 10, 80, 60, 8],
         ['level_20', '完全体', '等级达到 Lv.20', 'level', 20, 200, 150, 9],
         ['rich_500', '小有积蓄', '持有金币达到 500', 'coins', 500, 50, 0, 10],
-        ['days_7', '七日陪伴', '和小bny相伴 7 天', 'days', 7, 100, 80, 11],
+        ['days_7', '七日陪伴', '和宠物相伴 7 天', 'days', 7, 100, 80, 11],
     ];
 
     public static function run(): void

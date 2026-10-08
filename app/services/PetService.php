@@ -233,10 +233,10 @@ class PetService
 
         $isFood = $item->type === 'food';
         if ($isFood && (int)$pet->hunger >= 100) {
-            throw new BizException('小bny 已经很饱了，吃不下啦');
+            throw new BizException('宠物 已经很饱了，吃不下啦');
         }
         if (!$isFood && (int)$pet->mood >= 100) {
-            throw new BizException('小bny 已经玩得很开心了');
+            throw new BizException('宠物 已经玩得很开心了');
         }
 
         $pet->hunger = self::clamp((int)$pet->hunger + (int)$item->hunger);
@@ -254,7 +254,7 @@ class PetService
 
         self::checkAchievements($pet);
         $pet->save();
-        return "给小bny 用了「{$item->name}」";
+        return "给宠物 用了「{$item->name}」";
     }
 
     /** 陪玩：耗体力换心情 */
@@ -265,7 +265,7 @@ class PetService
         self::assertFree($pet);
 
         if ((int)$pet->hunger < self::PLAY_MIN_HUNGER) {
-            throw new BizException('小bny 饿得没力气了，先喂点吃的吧');
+            throw new BizException('宠物 饿得没力气了，先喂点吃的吧');
         }
         if ((int)$pet->energy <= self::PLAY_ENERGY_COST) {
             throw new BizException('体力不够了，让它先休息一下吧');
@@ -284,7 +284,7 @@ class PetService
 
         self::checkAchievements($pet);
         $pet->save();
-        return '和小bny 玩得开心极了' . ($low ? '（状态低落，收益减半）' : '');
+        return '和宠物 玩得开心极了' . ($low ? '（状态低落，收益减半）' : '');
     }
 
     /** 睡觉/唤醒 */
@@ -294,18 +294,18 @@ class PetService
         self::tick($pet);
         if ($on) {
             if ($pet->work_type !== '') {
-                throw new BizException('小bny 正在打工，下班再睡吧');
+                throw new BizException('宠物 正在打工，下班再睡吧');
             }
             if ((int)$pet->energy >= 100) {
-                throw new BizException('小bny 精力充沛，还不想睡');
+                throw new BizException('宠物 精力充沛，还不想睡');
             }
             $pet->sleeping = 1;
             $pet->save();
-            return '小bny 睡着了，体力正在恢复…';
+            return '宠物 睡着了，体力正在恢复…';
         }
         $pet->sleeping = 0;
         $pet->save();
-        return '小bny 醒过来啦';
+        return '宠物 醒过来啦';
     }
 
     /** 接打工单 */
@@ -329,7 +329,7 @@ class PetService
         $pet->work_start_at = $now;
         $pet->work_end_at = $now + $job['minutes'] * 60;
         $pet->save();
-        return "小bny 出发去「{$job['name']}」了";
+        return "宠物 出发去「{$job['name']}」了";
     }
 
     /** 打工收工：结算报酬 */
@@ -340,7 +340,7 @@ class PetService
 
         $jobKey = (string)$pet->work_type;
         if ($jobKey === '') {
-            throw new BizException('小bny 没有在打工哦');
+            throw new BizException('宠物 没有在打工哦');
         }
         if (time() < (int)$pet->work_end_at) {
             throw new BizException('还没到下班时间，再等等吧');
@@ -625,10 +625,10 @@ class PetService
     private static function assertFree(Pet $pet): void
     {
         if ((string)$pet->work_type !== '') {
-            throw new BizException('小bny 正在打工，等它下班吧');
+            throw new BizException('宠物 正在打工，等它下班吧');
         }
         if ((int)$pet->sleeping === 1) {
-            throw new BizException('小bny 睡着了，先叫醒它吧');
+            throw new BizException('宠物 睡着了，先叫醒它吧');
         }
     }
 

@@ -16,7 +16,7 @@
         <!-- 面板信息 -->
         <section class="panel-info">
             <div class="pi-head">
-                <span class="pet-name" id="petName">小bny</span>
+                <span class="pet-name" id="petName">宠物</span>
                 <span class="lv" id="petLv">Lv.1</span>
                 <span class="pi-status" id="petStatus">幼生期 · 心情不错</span>
             </div>
@@ -167,6 +167,7 @@
     <div id="toast"></div>
 
     <script>
+        document.oncontextmenu = () => false; // 禁用右键菜单
         // ---------- 全局状态 ----------
         let S = null;                 // /api/state 返回的 data
         let knownAch = new Set();     // 已知成就 code，用于解锁弹提示
@@ -376,7 +377,7 @@
                 title.textContent = '玩耍';
                 const p = S.pet;
                 body.innerHTML = `
-                    <div class="hint">陪它玩一会儿：体力 -15 · 饱食 -5 → 心情 +20 · 经验 +6${p.low ? '<br><b>小bny 状态低落中，收益会减半</b>' : ''}</div>
+                    <div class="hint">陪它玩一会儿：体力 -15 · 饱食 -5 → 心情 +20 · 经验 +6${p.low ? '<br><b>宠物 状态低落中，收益会减半</b>' : ''}</div>
                     <button class="btn wide" id="playBtn">陪它玩耍</button>`;
                 body.querySelector('#playBtn').onclick = () => action('/api/pet/play');
             }
@@ -385,7 +386,7 @@
                 title.textContent = '打工';
                 if (S.work) {
                     body.innerHTML = `
-                        <div class="hint">小bny 正在「${esc(S.work.name)}」，干完这单才能做别的</div>
+                        <div class="hint">宠物 正在「${esc(S.work.name)}」，干完这单才能做别的</div>
                         <div class="row center">
                             <div class="row-main center">
                                 <div class="countdown" id="workCountdown">--:--</div>
